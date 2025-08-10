@@ -1,0 +1,50 @@
+# Простой воркфлоу для сборки и деплоя статичного контента на GitHub Pages
+name: Deploy static content to Pages
+
+on:
+  # Запускается при пуше в ветку `main`
+  push:
+    branches: ['main']
+
+  # Позволяет запускать этот воркфлоу вручную со страницы Actions
+  workflow_dispatch:
+
+# Устанавливаем права для GITHUB_TOKEN, чтобы разрешить деплой на GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Разрешаем только один одновременный деплой, отменяя предыдущие запуски
+concurrency:
+  group: 'pages'
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18 # Используйте версию Node.js, подходящую для проекта
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build # Эта команда запустит сборку проекта Vite
+        # `npm run build` должен быть настроен в package.json, что обычно так и есть
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Загружаем из папки, которую создает Vite по умолчанию
+          path: './dist'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
