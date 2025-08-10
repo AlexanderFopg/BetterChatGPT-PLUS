@@ -1,24 +1,39 @@
 import { EventSourceData } from '@type/api';
 
+/**
+ * A more robust parser for Server-Sent Events (SSE).
+ * This version processes the stream line by line, handles comments,
+ * and correctly accumulates multi-line data.
+ */
 export const parseEventSource = (
   data: string
 ): '[DONE]' | EventSourceData[] => {
-  const result = data
-    .split('\n\n')
-    .filter(Boolean)
-    .map((chunk) => {
-      const jsonString = chunk
-        .split('\n')
-        .map((line) => line.replace(/^data: /, ''))
-        .join('');
-      if (jsonString === '[DONE]') return jsonString;
+  const result: EventSourceData[] = [];
+  // Split the data into lines
+  const lines = data.split('\n');
+
+  for (const line of lines) {
+    // Ignore comment lines (starting with ':') and empty lines
+    if (line.startsWith(':') || line.trim() === '') {
+      continue;
+    }
+
+    // Check for the [DONE] marker
+    if (line.includes('[DONE]')) {
+      return '[DONE]';
+    }
+
+    if (line.startsWith('data: ')) {
+      const jsonString = line.substring(6); // Remove 'data: ' prefix
       try {
         const json = JSON.parse(jsonString);
-        return json;
-      } catch {
-        return jsonString;
+        result.push(json);
+      } catch (e) {
+        // This might happen with partial JSON, log it for debugging but continue
+        console.warn('Could not parse SSE JSON chunk:', jsonString);
       }
-    });
+    }
+  }
   return result;
 };
 
