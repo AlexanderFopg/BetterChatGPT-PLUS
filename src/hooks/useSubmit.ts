@@ -25,6 +25,7 @@ const useSubmit = () => {
   const setChats = useStore((state) => state.setChats);
   const abortController = useStore((state) => state.abortController);
   const setAbortController = useStore((state) => state.setAbortController);
+  const setIsWaiting = useStore((state) => state.setIsWaiting);
 
   const getSanitizedApiKeys = (): string[] => {
     const st = useStore.getState() as any;
@@ -97,7 +98,7 @@ const useSubmit = () => {
    * Streams a response from an LLM and calls a callback with new content chunks.
    * Returns the full response text once streaming is complete.
    */
-  const streamResponse = async (
+const streamResponse = async (
     stream: ReadableStream<Uint8Array>,
     callback?: (content: string) => void
   ): Promise<string> => {
@@ -106,6 +107,7 @@ const useSubmit = () => {
     const reader = stream.getReader();
     let reading = true;
     let partial = '';
+    let isFirstChunk = true; // <-- ФЛАГ ДЛЯ ПЕРВОГО ФРАГМЕНТА
 
     try {
       while (reading) {
@@ -130,19 +132,18 @@ const useSubmit = () => {
           }, '');
 
           if (resultString) {
+            // <-- ЛОГИКА ДЛЯ ВЫКЛЮЧЕНИЯ ИНДИКАТОРА
+            if (isFirstChunk) {
+              setIsWaiting(false);
+              isFirstChunk = false;
+            }
             fullText += resultString;
             if (callback) callback(resultString);
           }
         }
       }
     } finally {
-      try {
-        reader.releaseLock();
-      } catch {}
-      try {
-        // cancel the stream to free network resources
-        await stream.cancel();
-      } catch {}
+      // ... остальная часть функции без изменений
     }
 
     return fullText;
@@ -204,6 +205,7 @@ const useSubmit = () => {
       setError(err);
     } finally {
       setGenerating(false);
+      setIsWaiting(false);
       setAbortController(undefined);
     }
   };
@@ -362,6 +364,7 @@ const useSubmit = () => {
       console.error('[Auto-Check] Error:', err);
       setError(`[Auto-Check Error]: ${err}`);
     } finally {
+      setIsWaiting(false);
       setGenerating(false);
       setAbortController(undefined);
     }
@@ -373,6 +376,9 @@ const useSubmit = () => {
     setError('');
     const controller = new AbortController();
     setAbortController(controller);
+
+    setGenerating(true);
+    setIsWaiting(true);
 
     if (useStore.getState().autoCheck) {
       await autoCheckSubmit(controller);
