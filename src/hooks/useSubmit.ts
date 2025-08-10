@@ -94,7 +94,7 @@ const useSubmit = () => {
    * Streams a response from an LLM and calls a callback with new content chunks.
    * Returns the full response text once streaming is complete.
    */
-  const streamResponse = async (
+const streamResponse = async (
     stream: ReadableStream<Uint8Array>,
     callback?: (content: string) => void
   ): Promise<string> => {
@@ -106,19 +106,19 @@ const useSubmit = () => {
 
     while (reading && useStore.getState().generating) {
       const { done, value } = await reader.read();
-      const result = parseEventSource(partial + new TextDecoder().decode(value));
-      partial = '';
+      const decodedChunk = new TextDecoder().decode(value);
 
-      if (result === '[DONE]' || done) {
+      const parsedEvents = parseEventSource(partial + decodedChunk);
+      partial = ''; // Reset partial buffer
+
+      if (parsedEvents === '[DONE]') {
         reading = false;
       } else {
-        const resultString = result.reduce((output: string, curr) => {
-          if (typeof curr === 'string') {
-            partial += curr;
-          } else if (curr?.choices?.[0]?.delta?.content) {
-            output += curr.choices[0].delta.content;
-          }
-          return output;
+        const resultString = parsedEvents.reduce((output: string, curr) => {
+            if (curr.choices && curr.choices[0]?.delta?.content) {
+                output += curr.choices[0].delta.content;
+            }
+            return output;
         }, '');
 
         if (resultString) {
@@ -193,7 +193,6 @@ const useSubmit = () => {
     const { chats, checkerConfig, checkerSystemMessage, streamFirstLLM, apiVersion } = useStore.getState();
     if (!chats) return;
 
-    // Prepare assistant message
     const updatedChats: ChatInterface[] = JSON.parse(JSON.stringify(chats));
     const currentChat = updatedChats[currentChatIndex];
     currentChat.messages.push({
@@ -214,7 +213,7 @@ const useSubmit = () => {
       );
       if (originalMessages.length === 0) throw new Error(t('errors.messageExceedMaxToken', { ns: 'api' }) as string);
 
-      console.log('[Auto-Check] Stage 1: Calling Primary LLM...');
+      console.log('[Auto-Check] Stage 1: Calling Primary LLM with payload:', JSON.stringify({messages: originalMessages, model: currentChat.config.model}));
       const { result: firstStream } = await withKeyFailover((key) =>
         getChatCompletionStream(apiEndpoint, originalMessages, currentChat.config, key, undefined, apiVersion)
       );
@@ -232,7 +231,7 @@ const useSubmit = () => {
 
         firstLLMResponse = await streamResponse(firstStream, streamCallback);
       }
-      console.log('[Auto-Check] Stage 1: Primary LLM response received:', firstLLMResponse);
+      console.log('[Auto-Check] Stage 1: Primary LLM response received:', `"${firstLLMResponse}"`);
 
       // Clear the message area before streaming the second response
       const preCheckChats: ChatInterface[] = JSON.parse(JSON.stringify(useStore.getState().chats));
@@ -244,13 +243,16 @@ const useSubmit = () => {
       // =======================================================================
       // STAGE 2: Get improved response from the Checker LLM
       // =======================================================================
+
+      // Use the provided template and replace the placeholder
       const checkerPromptTemplate = checkerSystemMessage || "Тебе нужно проверить этот запрос:\n{first-llm-response}\nПерепиши его, сделав лучше";
-      const checkerPromptContent = checkerPromptTemplate.replace('{first-llm-response}', firstLLMResponse);
+      const finalCheckerPrompt = checkerPromptTemplate.replace('{first-llm-response}', firstLLMResponse);
 
-      const checkerMessages: MessageInterface[] = [{ role: 'user', content: [{ type: 'text', text: checkerPromptContent }] }];
-      console.log('[Auto-Check] Stage 2: Prompt for Checker LLM:', checkerPromptContent);
+      // The entire prompt is sent as a 'user' message
+      const checkerMessages: MessageInterface[] = [{ role: 'user', content: [{ type: 'text', text: finalCheckerPrompt }] }];
 
-      console.log('[Auto-Check] Stage 2: Calling Checker LLM...');
+      console.log('[Auto-Check] Stage 2: Calling Checker LLM with payload:', JSON.stringify({messages: checkerMessages, model: checkerConfig.model}));
+
       const { result: checkerStream } = await withKeyFailover((key) =>
         getChatCompletionStream(apiEndpoint, checkerMessages, checkerConfig, key, undefined, apiVersion)
       );
@@ -270,7 +272,7 @@ const useSubmit = () => {
     } catch (e) {
       const err = (e as Error).message;
       console.error('[Auto-Check] Error:', err);
-      setError(err);
+      setError(`[Auto-Check Error]: ${err}`); // Prefixing error for easier identification
     } finally {
       setGenerating(false);
       // Further logic like title generation could go here
