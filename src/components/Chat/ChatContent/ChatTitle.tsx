@@ -7,7 +7,7 @@ import { ChatInterface, ConfigInterface, ImageDetail } from '@type/chat';
 import { _defaultChatConfig } from '@constants/chat';
 
 const ChatTitle = React.memo(() => {
-  const { t } = useTranslation('model');
+  const { t } = useTranslation(['model', 'main']); // Add 'main' namespace
   const customModels = useStore((state) => state.customModels);
   const chat = useStore(
     (state) =>
@@ -19,6 +19,13 @@ const ChatTitle = React.memo(() => {
         : undefined,
     shallow
   );
+  // ===========================================================================
+  // NEW: Get auto-check state
+  // ===========================================================================
+  const autoCheck = useStore((state) => state.autoCheck);
+  const checkerConfig = useStore((state) => state.checkerConfig);
+  // ===========================================================================
+
   const setChats = useStore((state) => state.setChats);
   const currentChatIndex = useStore((state) => state.currentChatIndex);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -87,6 +94,20 @@ const ChatTitle = React.memo(() => {
         <div className='text-center p-1 rounded-md bg-gray-300/20 dark:bg-gray-900/10 hover:bg-gray-300/50 dark:hover:bg-gray-900/50'>
           {t('imageDetail.label')}: {chat.imageDetail}
         </div>
+
+        {/* ======================================================================= */}
+        {/* NEW: Display for auto-check status                                    */}
+        {/* ======================================================================= */}
+        {autoCheck && (
+          <div className='w-full text-center p-1 mt-1 rounded-md bg-blue-500/20 dark:bg-blue-900/30 font-semibold'>
+            {t('autoCheck.activeTitle', {
+              ns: 'main',
+              defaultValue: 'Auto-Check'
+            })}: {getModelDisplayName(checkerConfig.model)}
+          </div>
+        )}
+        {/* ======================================================================= */}
+
       </div>
       {isModalOpen && (
         <ConfigMenu
