@@ -53,6 +53,7 @@ const ContentView = memo(
     setIsEdit: React.Dispatch<React.SetStateAction<boolean>>;
     messageIndex: number;
   }) => {
+    const { t } = useTranslation('main');
     const { handleSubmit } = useSubmit();
 
     const [isDelete, setIsDelete] = useState<boolean>(false);
@@ -65,7 +66,11 @@ const ContentView = memo(
     );
     const inlineLatex = useStore((state) => state.inlineLatex);
     const markdownMode = useStore((state) => state.markdownMode);
+
     const generating = useStore((state) => state.generating);
+    const isWaiting = useStore((state) => state.isWaiting);
+    const streamFirstLLM = useStore((state) => state.streamFirstLLM);
+    const autoCheck = useStore((state) => state.autoCheck);
 
     const handleDelete = () => {
       const updatedChats: ChatInterface[] = JSON.parse(
@@ -108,6 +113,11 @@ const ContentView = memo(
       setChats(updatedChats);
       handleSubmit();
     };
+
+// <-- ЛОГИКА ОТОБРАЖЕНИЯ ИНДИКАТОРА
+    const isLastMessage = messageIndex === lastMessageIndex;
+    const showWaitingIndicator = isLastMessage && generating && isWaiting && !streamFirstLLM && autoCheck;
+
     const currentTextContent = isTextContent(content[0]) ? content[0].text : '';
     const handleCopy = () => {
       navigator.clipboard.writeText(currentTextContent);
@@ -126,8 +136,11 @@ const ContentView = memo(
     return (
       <>
         <div className='markdown prose w-full md:max-w-full break-words dark:prose-invert dark share-gpt-message'>
-          {role === 'assistant' && isTextContent(content[0]) && content[0].text === '' && generating ? (
-            <div className='text-gray-500 italic animate-pulse'>Generating...</div>
+          {/* <-- УСЛОВНЫЙ РЕНДЕРИНГ */}
+          {showWaitingIndicator ? (
+            <span className='italic text-gray-500 dark:text-gray-400 animate-pulse'>
+              {t('generatingWaitMessage', { ns: 'main', defaultValue: 'Wait for answer...' })}
+            </span>
           ) : markdownMode ? (
             <ReactMarkdown
               remarkPlugins={[
