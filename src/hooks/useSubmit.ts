@@ -298,19 +298,33 @@ const useSubmit = () => {
           .join('\n\n');
       }
 
-      // Формируем нормальный system+user контекст для чекера
-      const template = checkerSystemMessage || 'You are an expert-level language model reviewer. Improve the following answer:\n{response}\nRespond with the improved answer only in Markdown.';
-      // Поддержка нового плейсхолдера {response} и обратная совместимость с {first-llm-response}
-      let userPrompt = template.split('{response}').join(firstLLMResponse);
-      userPrompt = userPrompt.split('{first-llm-response}').join(firstLLMResponse);
-      // Фолбэк: если плейсхолдеров нет, просто добавим ответ в конец
-      if (userPrompt === template) {
-        userPrompt = `${template}\n\nAssistant answer:\n${firstLLMResponse}`;
-      }
+    const defaultTemplate =
+      'Пользователь запросил: {user-request}\nLlm ответила: {llm-response}\nВсё ли в порядке? Улучши её ответ';
 
-      const checkerMessages: MessageInterface[] = [
-        { role: 'user', content: [{ type: 'text', text: userPrompt }] as any },
-      ];
+    const template =
+      checkerSystemMessage && checkerSystemMessage.trim().length
+        ? checkerSystemMessage
+        : defaultTemplate;
+
+    // Раньше было split/join, чтобы заменить все вхождения без replaceAll.
+    // Теперь используем replace с глобальными regex — читабельнее и заменяет все вхождения.
+    // Поддерживаем также legacy-плейсхолдеры для совместимости.
+    let userPrompt = template
+      .replace(/\{user-request\}/g, lastUserText)
+      .replace(/\{llm-response\}/g, firstLLMResponse)
+
+    // Фолбэк: если в шаблоне не было ни одного плейсхолдера — добавим всё вручную
+    if (userPrompt === template) {
+      const pieces: string[] = [];
+      if (lastUserText) pieces.push(`Пользователь запросил:\n${lastUserText}`);
+      pieces.push(`Llm ответила:\n${firstLLMResponse}`);
+      pieces.push('Улучшите ответ (Markdown).');
+      userPrompt = pieces.join('\n\n');
+    }
+
+    const checkerMessages: MessageInterface[] = [
+      { role: 'user', content: [{ type: 'text', text: userPrompt }] as any },
+    ];
 
       console.log('[Auto-Check] Stage 2: Calling Checker LLM with payload:', JSON.stringify({messages: checkerMessages, model: checkerConfig.model}));
 
