@@ -88,7 +88,7 @@ const ApiMenu = ({
             />
             {t('customEndpoint', { ns: 'api' })}
           </label>
-          <div className='flex gap-2 items-center mb-6'>
+          <div className='flex flex-col sm:flex-row sm:items-center gap-2 mb-6'>
             <div className='min-w-fit text-gray-900 dark:text-gray-300 text-sm'>
               {t('apiEndpoint.inputLabel', { ns: 'api' })}
             </div>
@@ -113,7 +113,7 @@ const ApiMenu = ({
           <h3 className='text-lg font-semibold mb-4 text-gray-900 dark:text-white'>
             {t('apiKey.manageTitle', { ns: 'api', defaultValue: 'Manage API Keys' })}
           </h3>
-          <div className='flex items-center gap-2 mb-4'>
+          <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-4'>
             <input
               type='password'
               className='flex-grow text-gray-800 dark:text-white p-3 text-sm border-none bg-gray-200 dark:bg-gray-600 rounded-md m-0 h-8 focus:outline-none'
@@ -174,7 +174,7 @@ const ApiMenu = ({
           <textarea
             value={_apiRequestBody}
             onChange={(e) => _setApiRequestBody(e.target.value)}
-            className={`w-full h-24 font-mono text-sm p-2 rounded-md bg-gray-200 dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-2 ${isJsonValid ? 'focus:ring-blue-500' : 'focus:ring-red-500 border border-red-500'}`}
+            className={`w-full h-32 font-mono text-sm p-2 rounded-md bg-gray-200 dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-2 ${isJsonValid ? 'focus:ring-blue-500' : 'focus:ring-red-500 border border-red-500'}`}
             placeholder='{ "provider": { "order": ["Ollama"] } }'
           />
           {!isJsonValid && (
@@ -186,7 +186,7 @@ const ApiMenu = ({
 
         {/* Секция с API Version и информационными сообщениями */}
         <div className='p-6'>
-          <div className='flex gap-2 items-center justify-center'>
+          <div className='flex flex-col sm:flex-row sm:items-center gap-2'>
             <div className='min-w-fit text-gray-900 dark:text-gray-300 text-sm'>
               {t('apiVersion.inputLabel', { ns: 'api' })}
             </div>
