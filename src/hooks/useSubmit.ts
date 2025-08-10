@@ -299,21 +299,17 @@ const useSubmit = () => {
       }
 
       // Формируем нормальный system+user контекст для чекера
-      const systemText =
-        checkerSystemMessage ||
-        'You are an expert-level language model reviewer. Improve the assistant’s answer. Respond with the improved answer only.';
-
-      const userText = [
-        lastUserText ? `Original user prompt:\n${lastUserText}` : '',
-        `Assistant answer:\n${firstLLMResponse}`,
-        'Please provide a better, more accurate, and more helpful answer (Markdown).',
-      ]
-        .filter(Boolean)
-        .join('\n\n');
+      const template = checkerSystemMessage || 'You are an expert-level language model reviewer. Improve the following answer:\n{response}\nRespond with the improved answer only in Markdown.';
+      // Поддержка нового плейсхолдера {response} и обратная совместимость с {first-llm-response}
+      let userPrompt = template.split('{response}').join(firstLLMResponse);
+      userPrompt = userPrompt.split('{first-llm-response}').join(firstLLMResponse);
+      // Фолбэк: если плейсхолдеров нет, просто добавим ответ в конец
+      if (userPrompt === template) {
+        userPrompt = `${template}\n\nAssistant answer:\n${firstLLMResponse}`;
+      }
 
       const checkerMessages: MessageInterface[] = [
-        { role: 'system', content: [{ type: 'text', text: systemText }] as any },
-        { role: 'user', content: [{ type: 'text', text: userText }] as any },
+        { role: 'user', content: [{ type: 'text', text: userPrompt }] as any },
       ];
 
       console.log('[Auto-Check] Stage 2: Calling Checker LLM with payload:', JSON.stringify({messages: checkerMessages, model: checkerConfig.model}));
