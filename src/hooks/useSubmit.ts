@@ -15,7 +15,7 @@ import { officialAPIEndpoint } from '@constants/auth';
 import { modelStreamSupport } from '@constants/modelLoader';
 
 const useSubmit = () => {
-  const { t, i18n } = useTranslation(['api', 'main']);
+  const { t } = useTranslation(['api', 'main']);
   const error = useStore((state) => state.error);
   const setError = useStore((state) => state.setError);
   const apiEndpoint = useStore((state) => state.apiEndpoint);
@@ -23,6 +23,8 @@ const useSubmit = () => {
   const generating = useStore((state) => state.generating);
   const currentChatIndex = useStore((state) => state.currentChatIndex);
   const setChats = useStore((state) => state.setChats);
+  const abortController = useStore((state) => state.abortController);
+  const setAbortController = useStore((state) => state.setAbortController);
 
   const getSanitizedApiKeys = (): string[] => {
     const st = useStore.getState() as any;
@@ -79,7 +81,8 @@ const useSubmit = () => {
           titleChatConfig,
           key,
           undefined,
-          useStore.getState().apiVersion
+          useStore.getState().apiVersion,
+          useStore.getState().abortController?.signal
         )
       );
       return data.choices[0].message.content;
@@ -90,11 +93,11 @@ const useSubmit = () => {
     }
   };
 
-/**
+  /**
    * Streams a response from an LLM and calls a callback with new content chunks.
    * Returns the full response text once streaming is complete.
    */
-const streamResponse = async (
+  const streamResponse = async (
     stream: ReadableStream<Uint8Array>,
     callback?: (content: string) => void
   ): Promise<string> => {
@@ -104,43 +107,51 @@ const streamResponse = async (
     let reading = true;
     let partial = '';
 
-    while (reading && useStore.getState().generating) {
-      const { done, value } = await reader.read();
-      const decodedChunk = new TextDecoder().decode(value);
+    try {
+      while (reading) {
+        if (!useStore.getState().generating) break;
 
-      const parsedEvents = parseEventSource(partial + decodedChunk);
-      partial = ''; // Reset partial buffer
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (!value) continue;
 
-if (parsedEvents === '[DONE]') {
-        reading = false;
-      } else {
-        const resultString = parsedEvents.reduce((output: string, curr) => {
-          // ===================================================================
-          // FIX: Add a type guard to ensure 'curr' is an object and not a string.
-          // ===================================================================
-          if (typeof curr !== 'string' && curr.choices && curr.choices[0]?.delta?.content) {
-              output += curr.choices[0].delta.content;
-          }
-          return output;
-        }, '');
+        const decodedChunk = new TextDecoder().decode(value);
+        const parsed = parseEventSource(partial + decodedChunk);
+        partial = parsed.remainder;
 
-        if (resultString) {
-          fullText += resultString;
-          if (callback) {
-            callback(resultString);
+        if (parsed.done) {
+          reading = false;
+        } else if (parsed.events && parsed.events.length) {
+          const resultString = parsed.events.reduce((output: string, curr) => {
+            if (typeof curr !== 'string' && (curr as any).choices && (curr as any).choices[0]?.delta?.content) {
+              output += (curr as any).choices[0].delta.content;
+            }
+            return output;
+          }, '');
+
+          if (resultString) {
+            fullText += resultString;
+            if (callback) callback(resultString);
           }
         }
       }
+    } finally {
+      try {
+        reader.releaseLock();
+      } catch {}
+      try {
+        // cancel the stream to free network resources
+        await stream.cancel();
+      } catch {}
     }
-    reader.releaseLock();
-    stream.cancel();
+
     return fullText;
   };
 
   /**
    * Handles the standard submission process (single LLM).
    */
-  const standardSubmit = async () => {
+  const standardSubmit = async (controller: AbortController) => {
     console.log('[Standard Submit] Initiated.');
     const chats = useStore.getState().chats;
     if (!chats) return;
@@ -164,11 +175,20 @@ if (parsedEvents === '[DONE]') {
 
       console.log('[Standard Submit] Calling LLM...');
       const { result: stream } = await withKeyFailover((key) =>
-        getChatCompletionStream(apiEndpoint, messages, currentChat.config, key, undefined, useStore.getState().apiVersion)
+        getChatCompletionStream(
+          apiEndpoint,
+          messages,
+          currentChat.config,
+          key,
+          undefined,
+          useStore.getState().apiVersion,
+          controller.signal
+        )
       );
 
       if (stream) {
         await streamResponse(stream, (content) => {
+          if (!useStore.getState().generating) return;
           const newChats: ChatInterface[] = JSON.parse(JSON.stringify(useStore.getState().chats));
           const lastMessage = newChats[currentChatIndex].messages[newChats[currentChatIndex].messages.length - 1];
           if (isTextContent(lastMessage.content[0])) {
@@ -184,14 +204,14 @@ if (parsedEvents === '[DONE]') {
       setError(err);
     } finally {
       setGenerating(false);
-      // Further logic like title generation could go here
+      setAbortController(undefined);
     }
   };
 
   /**
    * Handles the two-stage auto-check submission process.
    */
-  const autoCheckSubmit = async () => {
+  const autoCheckSubmit = async (controller: AbortController) => {
     console.log('[Auto-Check] Initiated.');
     const { chats, checkerConfig, checkerSystemMessage, streamFirstLLM, apiVersion } = useStore.getState();
     if (!chats) return;
@@ -218,12 +238,21 @@ if (parsedEvents === '[DONE]') {
 
       console.log('[Auto-Check] Stage 1: Calling Primary LLM with payload:', JSON.stringify({messages: originalMessages, model: currentChat.config.model}));
       const { result: firstStream } = await withKeyFailover((key) =>
-        getChatCompletionStream(apiEndpoint, originalMessages, currentChat.config, key, undefined, apiVersion)
+        getChatCompletionStream(
+          apiEndpoint,
+          originalMessages,
+          currentChat.config,
+          key,
+          undefined,
+          apiVersion,
+          controller.signal
+        )
       );
 
       let firstLLMResponse = '';
       if (firstStream) {
         const streamCallback = streamFirstLLM ? (content: string) => {
+          if (!useStore.getState().generating) return;
           const newChats: ChatInterface[] = JSON.parse(JSON.stringify(useStore.getState().chats));
           const lastMessage = newChats[currentChatIndex].messages[newChats[currentChatIndex].messages.length - 1];
           if (isTextContent(lastMessage.content[0])) {
@@ -236,7 +265,19 @@ if (parsedEvents === '[DONE]') {
       }
       console.log('[Auto-Check] Stage 1: Primary LLM response received:', `"${firstLLMResponse}"`);
 
-      // Clear the message area before streaming the second response
+      // Если отменили во время Stage 1 — не выполняем Stage 2
+      if (!useStore.getState().generating || controller.signal.aborted) {
+        console.log('[Auto-Check] Canceled after Stage 1. Skipping Stage 2.');
+        return;
+      }
+
+      // Если Stage 1 не дал текста — не выполняем Stage 2
+      if (!firstLLMResponse || !firstLLMResponse.trim()) {
+        console.log('[Auto-Check] Stage 1 produced empty response. Skipping Stage 2.');
+        return;
+      }
+
+      // Очистка последнего assistant-сообщения перед стримом Stage 2
       const preCheckChats: ChatInterface[] = JSON.parse(JSON.stringify(useStore.getState().chats));
       const lastMessageIndex = preCheckChats[currentChatIndex].messages.length - 1;
       preCheckChats[currentChatIndex].messages[lastMessageIndex].content = [{ type: 'text', text: '' }];
@@ -247,21 +288,56 @@ if (parsedEvents === '[DONE]') {
       // STAGE 2: Get improved response from the Checker LLM
       // =======================================================================
 
-      // Use the provided template and replace the placeholder
-      const checkerPromptTemplate = checkerSystemMessage || "Тебе нужно проверить этот запрос:\n{first-llm-response}\nПерепиши его, сделав лучше";
-      const finalCheckerPrompt = checkerPromptTemplate.replace('{first-llm-response}', firstLLMResponse);
+      // Вытаскиваем последний пользовательский запрос (если есть)
+      const lastUserMsg = [...originalMessages].reverse().find((m) => m.role === 'user');
+      let lastUserText = '';
+      if (lastUserMsg && Array.isArray(lastUserMsg.content)) {
+        lastUserText = lastUserMsg.content
+          .map((c: any) => (c?.type === 'text' ? c.text : ''))
+          .filter(Boolean)
+          .join('\n\n');
+      }
 
-      // The entire prompt is sent as a 'user' message
-      const checkerMessages: MessageInterface[] = [{ role: 'user', content: [{ type: 'text', text: finalCheckerPrompt }] }];
+      // Формируем нормальный system+user контекст для чекера
+      const systemText =
+        checkerSystemMessage ||
+        'You are an expert-level language model reviewer. Improve the assistant’s answer. Respond with the improved answer only.';
+
+      const userText = [
+        lastUserText ? `Original user prompt:\n${lastUserText}` : '',
+        `Assistant answer:\n${firstLLMResponse}`,
+        'Please provide a better, more accurate, and more helpful answer (Markdown).',
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+
+      const checkerMessages: MessageInterface[] = [
+        { role: 'system', content: [{ type: 'text', text: systemText }] as any },
+        { role: 'user', content: [{ type: 'text', text: userText }] as any },
+      ];
 
       console.log('[Auto-Check] Stage 2: Calling Checker LLM with payload:', JSON.stringify({messages: checkerMessages, model: checkerConfig.model}));
 
       const { result: checkerStream } = await withKeyFailover((key) =>
-        getChatCompletionStream(apiEndpoint, checkerMessages, checkerConfig, key, undefined, apiVersion)
+        getChatCompletionStream(
+          apiEndpoint,
+          checkerMessages,
+          checkerConfig,
+          key,
+          undefined,
+          apiVersion,
+          controller.signal
+        )
       );
+
+      if (!useStore.getState().generating || controller.signal.aborted) {
+        console.log('[Auto-Check] Canceled before streaming Stage 2. Skipping.');
+        return;
+      }
 
       if (checkerStream) {
         await streamResponse(checkerStream, (content) => {
+          if (!useStore.getState().generating) return;
           const newChats: ChatInterface[] = JSON.parse(JSON.stringify(useStore.getState().chats));
           const lastMessage = newChats[currentChatIndex].messages[newChats[currentChatIndex].messages.length - 1];
           if (isTextContent(lastMessage.content[0])) {
@@ -271,14 +347,13 @@ if (parsedEvents === '[DONE]') {
         });
       }
       console.log('[Auto-Check] Stage 2: Checker LLM streaming complete.');
-
     } catch (e) {
       const err = (e as Error).message;
       console.error('[Auto-Check] Error:', err);
-      setError(`[Auto-Check Error]: ${err}`); // Prefixing error for easier identification
+      setError(`[Auto-Check Error]: ${err}`);
     } finally {
       setGenerating(false);
-      // Further logic like title generation could go here
+      setAbortController(undefined);
     }
   };
 
@@ -286,10 +361,13 @@ if (parsedEvents === '[DONE]') {
     if (generating) return;
 
     setError('');
+    const controller = new AbortController();
+    setAbortController(controller);
+
     if (useStore.getState().autoCheck) {
-      await autoCheckSubmit();
+      await autoCheckSubmit(controller);
     } else {
-      await standardSubmit();
+      await standardSubmit(controller);
     }
   };
 
