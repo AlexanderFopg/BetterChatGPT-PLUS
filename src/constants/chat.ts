@@ -37,6 +37,26 @@ export const _defaultChatConfig: ConfigInterface = {
   frequency_penalty: 0,
 };
 
+// =============================================================================
+// NEW: Default configuration and system message for the checker LLM
+// =============================================================================
+export const _defaultCheckerConfig: ConfigInterface = {
+  model: defaultModel,
+  max_tokens: defaultUserMaxToken,
+  temperature: 0.7,
+  presence_penalty: 0,
+  top_p: 1,
+  frequency_penalty: 0,
+};
+
+export const _defaultCheckerSystemMessage =
+  `You are an expert-level language model reviewer. Your task is to check and improve the response from another AI assistant.
+The user will provide you with their original prompt and the assistant's response.
+Your goal is to provide a better, more accurate, and more helpful response.
+Do not critique the original response. Simply provide the improved version.
+Respond using Markdown.`;
+// =============================================================================
+
 export const generateDefaultChat = (
   title?: string,
   folder?: string

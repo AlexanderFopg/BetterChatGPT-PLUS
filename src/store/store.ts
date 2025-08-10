@@ -51,8 +51,8 @@ export const createPartializedState = (state: StoreState) => ({
   chats: state.chats,
   currentChatIndex: state.currentChatIndex,
   apiKey: state.apiKey,
-  apiKeys: state.apiKeys, // NEW
-  activeApiKeyIndex: state.activeApiKeyIndex, // NEW
+  apiKeys: state.apiKeys,
+  activeApiKeyIndex: state.activeApiKeyIndex,
   apiVersion: state.apiVersion,
   apiEndpoint: state.apiEndpoint,
   theme: state.theme,
@@ -75,6 +75,14 @@ export const createPartializedState = (state: StoreState) => ({
   defaultImageDetail: state.defaultImageDetail,
   autoScroll: state.autoScroll,
   customModels: state.customModels,
+  // ===========================================================================
+  // NEW: Add new config values to be persisted
+  // ===========================================================================
+  autoCheck: state.autoCheck,
+  streamFirstLLM: state.streamFirstLLM,
+  checkerConfig: state.checkerConfig,
+  checkerSystemMessage: state.checkerSystemMessage,
+  // ===========================================================================
 });
 
 const useStore = create<StoreState>()(

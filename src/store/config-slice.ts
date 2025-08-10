@@ -1,6 +1,15 @@
 import { StoreSlice } from './store';
 import { Theme } from '@type/theme';
-import { _defaultChatConfig, _defaultSystemMessage,_defaultMenuWidth, defaultModel, _defaultImageDetail, _defaultDisplayChatSize } from '@constants/chat';
+import {
+  _defaultChatConfig,
+  _defaultSystemMessage,
+  _defaultMenuWidth,
+  defaultModel,
+  _defaultImageDetail,
+  _defaultDisplayChatSize,
+  _defaultCheckerConfig,         // New import
+  _defaultCheckerSystemMessage  // New import
+} from '@constants/chat';
 import { ConfigInterface, ImageDetail, TotalTokenUsed } from '@type/chat';
 import { ModelOptions } from '@utils/modelReader';
 
@@ -23,6 +32,14 @@ export interface ConfigSlice {
   displayChatSize: boolean;
   defaultImageDetail: ImageDetail;
   autoScroll: boolean;
+  // ===========================================================================
+  // NEW: State for auto-check feature
+  // ===========================================================================
+  autoCheck: boolean;
+  streamFirstLLM: boolean;
+  checkerConfig: ConfigInterface;
+  checkerSystemMessage: string;
+  // ===========================================================================
   setOpenConfig: (openConfig: boolean) => void;
   setTheme: (theme: Theme) => void;
   setAutoTitle: (autoTitle: boolean) => void;
@@ -41,6 +58,14 @@ export interface ConfigSlice {
   setDisplayChatSize: (displayChatSize: boolean) => void;
   setDefaultImageDetail: (imageDetail: ImageDetail) => void;
   setAutoScroll: (autoScroll: boolean) => void;
+  // ===========================================================================
+  // NEW: Setters for auto-check feature
+  // ===========================================================================
+  setAutoCheck: (autoCheck: boolean) => void;
+  setStreamFirstLLM: (streamFirstLLM: boolean) => void;
+  setCheckerConfig: (checkerConfig: ConfigInterface) => void;
+  setCheckerSystemMessage: (checkerSystemMessage: string) => void;
+  // ===========================================================================
 }
 
 export const createConfigSlice: StoreSlice<ConfigSlice> = (set, get) => ({
@@ -62,6 +87,14 @@ export const createConfigSlice: StoreSlice<ConfigSlice> = (set, get) => ({
   displayChatSize: _defaultDisplayChatSize,
   defaultImageDetail: _defaultImageDetail,
   autoScroll: true,
+  // ===========================================================================
+  // NEW: Initial values for auto-check feature
+  // ===========================================================================
+  autoCheck: false,
+  streamFirstLLM: false,
+  checkerConfig: _defaultCheckerConfig,
+  checkerSystemMessage: _defaultCheckerSystemMessage,
+  // ===========================================================================
   setOpenConfig: (openConfig: boolean) => {
     set((prev: ConfigSlice) => ({
       ...prev,
@@ -170,4 +203,20 @@ export const createConfigSlice: StoreSlice<ConfigSlice> = (set, get) => ({
       autoScroll: autoScroll,
     }));
   },
+  // ===========================================================================
+  // NEW: Setter implementations for auto-check feature
+  // ===========================================================================
+  setAutoCheck: (autoCheck: boolean) => {
+    set((prev: ConfigSlice) => ({ ...prev, autoCheck }));
+  },
+  setStreamFirstLLM: (streamFirstLLM: boolean) => {
+    set((prev: ConfigSlice) => ({ ...prev, streamFirstLLM }));
+  },
+  setCheckerConfig: (checkerConfig: ConfigInterface) => {
+    set((prev: ConfigSlice) => ({ ...prev, checkerConfig }));
+  },
+  setCheckerSystemMessage: (checkerSystemMessage: string) => {
+    set((prev: ConfigSlice) => ({ ...prev, checkerSystemMessage }));
+  },
+  // ===========================================================================
 });
