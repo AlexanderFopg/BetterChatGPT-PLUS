@@ -111,14 +111,17 @@ const streamResponse = async (
       const parsedEvents = parseEventSource(partial + decodedChunk);
       partial = ''; // Reset partial buffer
 
-      if (parsedEvents === '[DONE]') {
+if (parsedEvents === '[DONE]') {
         reading = false;
       } else {
         const resultString = parsedEvents.reduce((output: string, curr) => {
-            if (curr.choices && curr.choices[0]?.delta?.content) {
-                output += curr.choices[0].delta.content;
-            }
-            return output;
+          // ===================================================================
+          // FIX: Add a type guard to ensure 'curr' is an object and not a string.
+          // ===================================================================
+          if (typeof curr !== 'string' && curr.choices && curr.choices[0]?.delta?.content) {
+              output += curr.choices[0].delta.content;
+          }
+          return output;
         }, '');
 
         if (resultString) {
