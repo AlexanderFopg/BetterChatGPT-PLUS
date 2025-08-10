@@ -6,13 +6,37 @@ import {
 import { isAzureEndpoint } from '@utils/api';
 import { ModelOptions } from '@utils/modelReader';
 
+/**
+ * Normalize messages for providers that expect `content` to be a plain string.
+ * If a message has only text parts, it will be converted to `{ role, content: string }`.
+ * Mixed/multimodal messages remain unchanged.
+ */
+const normalizeMessagesForProvider = (messages: MessageInterface[]) => {
+  return messages.map((m) => {
+    const content = Array.isArray(m.content) ? m.content : [];
+    const allText =
+      content.length > 0 &&
+      content.every(
+        (c) => c && c.type === 'text' && typeof (c as any).text === 'string'
+      );
+
+    if (allText) {
+      const joined = content.map((c: any) => c.text).join('\n\n');
+      return { role: m.role, content: joined };
+    }
+    // leave as-is (for multimodal or already string)
+    return m as any;
+  });
+};
+
 export const getChatCompletion = async (
   endpoint: string,
   messages: MessageInterface[],
   config: ConfigInterface,
   apiKey?: string,
   customHeaders?: Record<string, string>,
-  apiVersionToUse?: string
+  apiVersionToUse?: string,
+  abortSignal?: AbortSignal
 ) => {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -32,7 +56,6 @@ export const getChatCompletion = async (
 
     const model = modelmapping[config.model] || config.model;
 
-    // set api version to 2023-07-01-preview for gpt-4 and gpt-4-32k, otherwise use 2023-03-15-preview
     const apiVersion =
       apiVersionToUse ??
       (model === 'gpt-4' || model === 'gpt-4-32k'
@@ -50,11 +73,14 @@ export const getChatCompletion = async (
   }
   endpoint = endpoint.trim();
 
+  const payloadMessages = normalizeMessagesForProvider(messages);
+
   const response = await fetch(endpoint, {
     method: 'POST',
     headers,
+    signal: abortSignal,
     body: JSON.stringify({
-      messages,
+      messages: payloadMessages,
       ...config,
       max_tokens: undefined,
     }),
@@ -71,7 +97,8 @@ export const getChatCompletionStream = async (
   config: ConfigInterface,
   apiKey?: string,
   customHeaders?: Record<string, string>,
-  apiVersionToUse?: string
+  apiVersionToUse?: string,
+  abortSignal?: AbortSignal
 ) => {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -89,7 +116,6 @@ export const getChatCompletionStream = async (
 
     const model = modelmapping[config.model] || config.model;
 
-    // set api version to 2023-07-01-preview for gpt-4 and gpt-4-32k, otherwise use 2023-03-15-preview
     const apiVersion =
       apiVersionToUse ??
       (model === 'gpt-4' || model === 'gpt-4-32k'
@@ -105,11 +131,15 @@ export const getChatCompletionStream = async (
     }
   }
   endpoint = endpoint.trim();
+
+  const payloadMessages = normalizeMessagesForProvider(messages);
+
   const response = await fetch(endpoint, {
     method: 'POST',
     headers,
+    signal: abortSignal,
     body: JSON.stringify({
-      messages,
+      messages: payloadMessages,
       ...config,
       max_tokens: undefined,
       stream: true,

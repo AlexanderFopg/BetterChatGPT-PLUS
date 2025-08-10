@@ -1,40 +1,48 @@
 import { EventSourceData } from '@type/api';
 
 /**
- * A more robust parser for Server-Sent Events (SSE).
- * This version processes the stream line by line, handles comments,
- * and correctly accumulates multi-line data.
+ * Robust SSE parser that supports partial chunks between reads.
+ * Returns:
+ * - events: parsed JSON events
+ * - done: whether [DONE] was received
+ * - remainder: trailing partial data to prepend to the next chunk
  */
 export const parseEventSource = (
   data: string
-): '[DONE]' | EventSourceData[] => {
-  const result: EventSourceData[] = [];
-  // Split the data into lines
+): { events: EventSourceData[]; done: boolean; remainder: string } => {
+  const events: EventSourceData[] = [];
+  let done = false;
+  let remainder = '';
+
+  // Split by single newlines; keep last partial line as remainder if not terminated
   const lines = data.split('\n');
 
-  for (const line of lines) {
-    // Ignore comment lines (starting with ':') and empty lines
-    if (line.startsWith(':') || line.trim() === '') {
-      continue;
-    }
+  // If the data does not end with a newline, the last line may be partial
+  if (!data.endsWith('\n')) {
+    remainder = lines.pop() ?? '';
+  }
 
-    // Check for the [DONE] marker
-    if (line.includes('[DONE]')) {
-      return '[DONE]';
-    }
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line || line.startsWith(':')) continue;
 
-    if (line.startsWith('data: ')) {
-      const jsonString = line.substring(6); // Remove 'data: ' prefix
+    if (line.startsWith('data:')) {
+      const payload = line.slice('data:'.length).trimStart();
+      if (payload === '[DONE]') {
+        done = true;
+        continue;
+      }
       try {
-        const json = JSON.parse(jsonString);
-        result.push(json);
-      } catch (e) {
-        // This might happen with partial JSON, log it for debugging but continue
-        console.warn('Could not parse SSE JSON chunk:', jsonString);
+        const json = JSON.parse(payload);
+        events.push(json);
+      } catch {
+        // Probably a partial JSON line; keep as remainder to be completed next read
+        remainder = `data: ${payload}`;
       }
     }
   }
-  return result;
+
+  return { events, done, remainder };
 };
 
 export const createMultipartRelatedBody = (
