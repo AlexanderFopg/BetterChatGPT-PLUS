@@ -66,6 +66,7 @@ export interface ConfigSlice {
   setCheckerConfig: (checkerConfig: ConfigInterface) => void;
   setCheckerSystemMessage: (checkerSystemMessage: string) => void;
   // ===========================================================================
+  setApiRequestBody: (body: string) => void;
 }
 
 export const createConfigSlice: StoreSlice<ConfigSlice> = (set, get) => ({
@@ -95,6 +96,7 @@ export const createConfigSlice: StoreSlice<ConfigSlice> = (set, get) => ({
   checkerConfig: _defaultCheckerConfig,
   checkerSystemMessage: _defaultCheckerSystemMessage,
   // ===========================================================================
+  apiRequestBody: '',
   setOpenConfig: (openConfig: boolean) => {
     set((prev: ConfigSlice) => ({
       ...prev,
@@ -217,6 +219,12 @@ export const createConfigSlice: StoreSlice<ConfigSlice> = (set, get) => ({
   },
   setCheckerSystemMessage: (checkerSystemMessage: string) => {
     set((prev: ConfigSlice) => ({ ...prev, checkerSystemMessage }));
+  },
+  setApiRequestBody: (body: string) => { // <-- И СЮДА
+    set((prev: ConfigSlice) => ({
+      ...prev,
+      apiRequestBody: body,
+    }));
   },
   // ===========================================================================
 });
