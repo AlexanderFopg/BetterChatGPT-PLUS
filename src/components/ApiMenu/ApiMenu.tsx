@@ -126,7 +126,7 @@ const ApiMenu = ({
                     className='form-radio h-4 w-4 text-blue-500 bg-gray-700 border-gray-500 focus:ring-blue-600'
                   />
                   <label htmlFor={`key-radio-${index}`} className='flex-1 cursor-pointer font-mono text-sm text-gray-700 dark:text-gray-300'>
-                    {maskApiKey(key)}
+                    {key}
                     {index === activeApiKeyIndex && (
                       <span className='ml-3 text-xs font-bold text-green-500 dark:text-green-400'>
                         ({t('apiKey.active', { ns: 'api', defaultValue: 'Active' })})
