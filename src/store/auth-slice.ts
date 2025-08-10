@@ -2,15 +2,15 @@ import { defaultAPIEndpoint } from '@constants/auth';
 import { StoreSlice } from './store';
 
 export interface AuthSlice {
-  apiKey?: string;
-  apiKeys: string[]; // NEW
-  activeApiKeyIndex: number; // NEW
+  apiKeys: string[];
+  activeApiKeyIndex: number;
   apiEndpoint: string;
   apiVersion?: string;
   firstVisit: boolean;
-  setApiKey: (apiKey: string) => void;
-  setApiKeys: (apiKeys: string[]) => void; // NEW
-  setActiveApiKeyIndex: (i: number) => void; // NEW
+  setApiKey: (apiKey: string) => void; // Оставляем для обратной совместимости и первого входа
+  addApiKey: (apiKey: string) => void; // Новый метод для добавления одного ключа
+  removeApiKey: (index: number) => void; // Новый метод для удаления ключа
+  setActiveApiKeyIndex: (i: number) => void;
   setApiEndpoint: (apiEndpoint: string) => void;
   setApiVersion: (apiVersion: string) => void;
   setFirstVisit: (firstVisit: boolean) => void;
@@ -23,61 +23,75 @@ const parseKeys = (input?: string | string[]): string[] => {
 };
 
 export const createAuthSlice: StoreSlice<AuthSlice> = (set, get) => {
-  const envOne = import.meta.env.VITE_OPENAI_API_KEY as string | undefined;
-  const envMany = import.meta.env.VITE_OPENAI_API_KEYS as string | undefined;
-  const initialKeys = parseKeys(envMany ?? envOne ?? '');
+  const envKeysString = import.meta.env.VITE_OPENAI_API_KEYS || import.meta.env.VITE_OPENAI_API_KEY;
+  const initialKeys = parseKeys(envKeysString);
 
   return {
-    apiKey: envOne || undefined,
-    apiKeys: initialKeys, // NEW
-    activeApiKeyIndex: 0, // NEW
+    apiKeys: initialKeys,
+    activeApiKeyIndex: 0,
     apiEndpoint: defaultAPIEndpoint,
     apiVersion: undefined,
     firstVisit: true,
 
+    // Этот метод вызывается из ApiPopup и старого поля ввода. Он перезаписывает все ключи.
     setApiKey: (apiKey: string) => {
-      set((prev: AuthSlice) => ({
-        ...prev,
-        apiKey,
-        apiKeys: parseKeys(apiKey), // авто‑парсинг нескольких ключей
+      const newKeys = parseKeys(apiKey);
+      set({
+        apiKeys: newKeys,
         activeApiKeyIndex: 0,
-      }));
+      });
     },
 
-    setApiKeys: (apiKeys: string[]) => {
-      const cleaned = parseKeys(apiKeys);
-      set((prev: AuthSlice) => ({
-        ...prev,
-        apiKeys: cleaned,
-        apiKey: cleaned.join(', '), // чтобы UI видел строку в старом поле
-        activeApiKeyIndex: 0,
-      }));
+    // Новый метод: добавляет один ключ, избегая дубликатов
+    addApiKey: (apiKey: string) => {
+      if (!apiKey.trim()) return;
+      set((prev) => {
+        if (prev.apiKeys.includes(apiKey.trim())) return prev; // Ключ уже существует
+        return { apiKeys: [...prev.apiKeys, apiKey.trim()] };
+      });
+    },
+
+    // Новый метод: удаляет ключ по индексу
+    removeApiKey: (index: number) => {
+      set((prev) => {
+        const newApiKeys = [...prev.apiKeys];
+        if (index < 0 || index >= newApiKeys.length) return prev; // Неверный индекс
+
+        newApiKeys.splice(index, 1);
+
+        // Корректируем активный индекс, если он указывает на удаленный ключ
+        const activeIndex = prev.activeApiKeyIndex;
+        let newActiveIndex = activeIndex;
+        if (activeIndex === index) {
+          newActiveIndex = 0;
+        } else if (activeIndex > index) {
+          newActiveIndex = activeIndex - 1;
+        }
+
+        return {
+          apiKeys: newApiKeys,
+          activeApiKeyIndex: newActiveIndex,
+        };
+      });
     },
 
     setActiveApiKeyIndex: (i: number) => {
-      set((prev: AuthSlice) => ({
-        ...prev,
-        activeApiKeyIndex: i,
-      }));
+      set((prev) => {
+        if (i >= 0 && i < prev.apiKeys.length) {
+          return { activeApiKeyIndex: i };
+        }
+        return prev;
+      });
     },
 
     setApiEndpoint: (apiEndpoint: string) => {
-      set((prev: AuthSlice) => ({
-        ...prev,
-        apiEndpoint,
-      }));
+      set({ apiEndpoint });
     },
     setApiVersion: (apiVersion: string) => {
-      set((prev: AuthSlice) => ({
-        ...prev,
-        apiVersion,
-      }));
+      set({ apiVersion });
     },
     setFirstVisit: (firstVisit: boolean) => {
-      set((prev: AuthSlice) => ({
-        ...prev,
-        firstVisit,
-      }));
+      set({ firstVisit });
     },
   };
 };
