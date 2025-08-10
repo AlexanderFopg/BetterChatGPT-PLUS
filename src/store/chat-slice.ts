@@ -7,6 +7,7 @@ export interface ChatSlice {
   chats?: ChatInterface[];
   currentChatIndex: number;
   generating: boolean;
+  isWaiting: boolean;
   error: string;
   folders: FolderCollection;
   // Abort management for in-flight requests
@@ -18,6 +19,7 @@ export interface ChatSlice {
   setChats: (chats: ChatInterface[]) => void;
   setCurrentChatIndex: (currentChatIndex: number) => void;
   setGenerating: (generating: boolean) => void;
+  setIsWaiting: (isWaiting: boolean) => void;
   setError: (error: string) => void;
   setFolders: (folders: FolderCollection) => void;
 }
@@ -27,6 +29,7 @@ export const createChatSlice: StoreSlice<ChatSlice> = (set, get) => {
     messages: [],
     currentChatIndex: -1,
     generating: false,
+    isWaiting: false,
     error: '',
     folders: {},
 
@@ -45,6 +48,7 @@ export const createChatSlice: StoreSlice<ChatSlice> = (set, get) => {
       set((prev: ChatSlice) => ({
         ...prev,
         generating: false,
+        isWaiting: false,
         abortController: undefined,
       }));
     },
@@ -83,6 +87,7 @@ export const createChatSlice: StoreSlice<ChatSlice> = (set, get) => {
         set((prev: ChatSlice) => ({
           ...prev,
           abortController: undefined,
+          isWaiting: false,
         }));
       }
 
@@ -90,6 +95,9 @@ export const createChatSlice: StoreSlice<ChatSlice> = (set, get) => {
         ...prev,
         generating: generating,
       }));
+    },
+    setIsWaiting: (isWaiting: boolean) => { // <-- РЕАЛИЗАЦИЯ
+        set({ isWaiting });
     },
     setError: (error: string) => {
       set((prev: ChatSlice) => ({
