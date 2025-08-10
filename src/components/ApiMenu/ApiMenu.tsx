@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import useStore from '@store/store';
 import useHideOnOutsideClick from '@hooks/useHideOnOutsideClick';
@@ -19,24 +19,32 @@ const ApiMenu = ({
 }) => {
   const { t } = useTranslation(['main', 'api']);
 
+  // Получаем новые состояния и методы
   const {
-    apiKeys,
-    activeApiKeyIndex,
-    apiEndpoint,
-    apiVersion,
-    addApiKey,
-    removeApiKey,
-    setActiveApiKeyIndex,
-    setApiEndpoint,
-    setApiVersion,
+    apiKeys, activeApiKeyIndex, apiEndpoint, apiVersion, apiRequestBody, // <-- получаем apiRequestBody
+    addApiKey, removeApiKey, setActiveApiKeyIndex, setApiEndpoint, setApiVersion, setApiRequestBody, // <-- получаем setApiRequestBody
   } = useStore();
 
   const [_apiEndpoint, _setApiEndpoint] = useState<string>(apiEndpoint);
   const [_apiVersion, _setApiVersion] = useState<string>(apiVersion || '');
-  const [_customEndpoint, _setCustomEndpoint] = useState<boolean>(
-    !availableEndpoints.includes(apiEndpoint)
-  );
+  const [_apiRequestBody, _setApiRequestBody] = useState<string>(apiRequestBody || ''); // <-- локальное состояние
+  const [_customEndpoint, _setCustomEndpoint] = useState<boolean>(!availableEndpoints.includes(apiEndpoint));
   const [newApiKey, setNewApiKey] = useState('');
+  const [isJsonValid, setIsJsonValid] = useState(true); // <-- состояние для валидации JSON
+
+  // Валидация JSON при изменении
+  useEffect(() => {
+    if (_apiRequestBody.trim() === '') {
+      setIsJsonValid(true);
+      return;
+    }
+    try {
+      JSON.parse(_apiRequestBody);
+      setIsJsonValid(true);
+    } catch (e) {
+      setIsJsonValid(false);
+    }
+  }, [_apiRequestBody]);
 
   const handleAddKey = () => {
     if (newApiKey.trim()) {
@@ -46,8 +54,13 @@ const ApiMenu = ({
   };
 
   const handleSave = () => {
+    if (!isJsonValid) {
+      alert(t('apiKey.invalidJsonWarning', { ns: 'api', defaultValue: 'The custom request body is not valid JSON. Please correct it before saving.'}));
+      return;
+    }
     setApiEndpoint(_apiEndpoint);
     setApiVersion(_apiVersion);
+    setApiRequestBody(_apiRequestBody); // <-- сохраняем тело запроса
     setIsModalOpen(false);
   };
 
@@ -148,6 +161,27 @@ const ApiMenu = ({
               </p>
             )}
           </div>
+        </div>
+
+        {/* Новая секция для кастомного тела запроса */}
+        <div className='p-6 border-b border-gray-200 dark:border-gray-600'>
+          <h3 className='text-lg font-semibold mb-2 text-gray-900 dark:text-white'>
+            {t('apiKey.customBodyTitle', { ns: 'api', defaultValue: 'Custom Request Body' })}
+          </h3>
+          <p className='text-sm text-gray-500 dark:text-gray-400 mb-3'>
+            {t('apiKey.customBodyDescription', { ns: 'api', defaultValue: 'Add custom JSON fields to the API request body. Useful for providers like OpenRouter.' })}
+          </p>
+          <textarea
+            value={_apiRequestBody}
+            onChange={(e) => _setApiRequestBody(e.target.value)}
+            className={`w-full h-24 font-mono text-sm p-2 rounded-md bg-gray-200 dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-2 ${isJsonValid ? 'focus:ring-blue-500' : 'focus:ring-red-500 border border-red-500'}`}
+            placeholder='{ "provider": { "order": ["Ollama"] } }'
+          />
+          {!isJsonValid && (
+            <p className='text-red-500 text-xs mt-1'>
+              {t('apiKey.invalidJson', { ns: 'api', defaultValue: 'Invalid JSON format.' })}
+            </p>
+          )}
         </div>
 
         {/* Секция с API Version и информационными сообщениями */}
