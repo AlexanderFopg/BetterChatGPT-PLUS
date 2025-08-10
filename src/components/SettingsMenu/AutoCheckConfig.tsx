@@ -17,54 +17,69 @@ import { _defaultCheckerConfig, _defaultCheckerSystemMessage } from '@constants/
 const AutoCheckConfig = () => {
   const { t } = useTranslation(['main', 'model']);
 
-  // Main toggle for the feature
-  const autoCheck = useStore((state) => state.autoCheck);
-  const setAutoCheck = useStore((state) => state.setAutoCheck);
+  // Получаем значения и сеттеры из глобального хранилища Zustand
+  const {
+    autoCheck,
+    setAutoCheck,
+    streamFirstLLM,
+    setStreamFirstLLM,
+    checkerConfig,
+    setCheckerConfig,
+    checkerSystemMessage,
+    setCheckerSystemMessage,
+  } = useStore(state => ({
+    autoCheck: state.autoCheck,
+    setAutoCheck: state.setAutoCheck,
+    streamFirstLLM: state.streamFirstLLM,
+    setStreamFirstLLM: state.setStreamFirstLLM,
+    checkerConfig: state.checkerConfig,
+    setCheckerConfig: state.setCheckerConfig,
+    checkerSystemMessage: state.checkerSystemMessage,
+    setCheckerSystemMessage: state.setCheckerSystemMessage,
+  }));
 
-  // Toggle for streaming first LLM
-  const streamFirstLLM = useStore((state) => state.streamFirstLLM);
-  const setStreamFirstLLM = useStore((state) => state.setStreamFirstLLM);
+  // Создаем локальное состояние для элементов формы, инициализируя его из Zustand
+  const [isAutoCheckEnabled, setIsAutoCheckEnabled] = useState(autoCheck);
+  const [isStreamFirstEnabled, setIsStreamFirstEnabled] = useState(streamFirstLLM);
+  const [localCheckerConfig, setLocalCheckerConfig] = useState<ConfigInterface>(checkerConfig);
+  const [localSystemMessage, setLocalSystemMessage] = useState<string>(checkerSystemMessage);
 
-  // Checker LLM configuration
-  const checkerConfig = useStore((state) => state.checkerConfig);
-  const setCheckerConfig = useStore((state) => state.setCheckerConfig);
-  const checkerSystemMessage = useStore((state) => state.checkerSystemMessage);
-  const setCheckerSystemMessage = useStore((state) => state.setCheckerSystemMessage);
-
-  const [_checkerConfig, _setCheckerConfig] = useState<ConfigInterface>(checkerConfig);
-  const [_checkerSystemMessage, _setCheckerSystemMessage] = useState<string>(checkerSystemMessage);
+  // Используем useEffect для синхронизации локальных изменений обратно в Zustand
+  useEffect(() => {
+    setAutoCheck(isAutoCheckEnabled);
+  }, [isAutoCheckEnabled, setAutoCheck]);
 
   useEffect(() => {
-    setCheckerConfig(_checkerConfig);
-  }, [_checkerConfig]);
+    setStreamFirstLLM(isStreamFirstEnabled);
+  }, [isStreamFirstEnabled, setStreamFirstLLM]);
 
   useEffect(() => {
-    setCheckerSystemMessage(_checkerSystemMessage);
-  }, [_checkerSystemMessage]);
+    setCheckerConfig(localCheckerConfig);
+  }, [localCheckerConfig, setCheckerConfig]);
+
+  useEffect(() => {
+    setCheckerSystemMessage(localSystemMessage);
+  }, [localSystemMessage, setCheckerSystemMessage]);
 
   const handleReset = () => {
-    _setCheckerConfig(_defaultCheckerConfig);
-    _setCheckerSystemMessage(_defaultCheckerSystemMessage);
+    setLocalCheckerConfig(_defaultCheckerConfig);
+    setLocalSystemMessage(_defaultCheckerSystemMessage);
   };
-
-  const handleConfigChange = (newConfig: Partial<ConfigInterface>) => {
-    _setCheckerConfig((prev) => ({ ...prev, ...newConfig }));
-  };
-
+  
   return (
     <div className='flex flex-col gap-4 p-4 border rounded-md border-gray-300 dark:border-gray-600 w-full'>
       <h2 className='text-lg font-semibold text-gray-900 dark:text-white'>{t('autoCheck.title', { ns: 'main', defaultValue: 'Auto-Check Response' })}</h2>
       <Toggle
         label={t('autoCheck.enable', { ns: 'main', defaultValue: 'Enable auto-check' })}
-        isChecked={autoCheck}
-        setIsChecked={setAutoCheck}
+        isChecked={isAutoCheckEnabled}
+        setIsChecked={setIsAutoCheckEnabled} // Теперь сюда передается сеттер от useState, что корректно
       />
-      {autoCheck && (
+      {isAutoCheckEnabled && (
         <div className='flex flex-col gap-4 pl-4 border-l-2 border-gray-300 dark:border-gray-500'>
           <Toggle
             label={t('autoCheck.streamFirst', { ns: 'main', defaultValue: 'Stream first LLM response' })}
-            isChecked={streamFirstLLM}
-            setIsChecked={setStreamFirstLLM}
+            isChecked={isStreamFirstEnabled}
+            setIsChecked={setIsStreamFirstEnabled} // И здесь тоже
           />
           <div className='flex flex-col gap-2'>
             <label className='block text-sm font-medium text-gray-900 dark:text-white'>
@@ -72,37 +87,37 @@ const AutoCheckConfig = () => {
             </label>
             <textarea
               className='my-2 mx-0 px-2 resize-none rounded-lg bg-gray-200 dark:bg-gray-800 overflow-y-auto leading-7 p-1 border border-gray-400/50 focus:ring-1 focus:ring-blue w-full'
-              value={_checkerSystemMessage}
-              onChange={(e) => _setCheckerSystemMessage(e.target.value)}
+              value={localSystemMessage}
+              onChange={(e) => setLocalSystemMessage(e.target.value)}
               rows={5}
             />
           </div>
 
           <ModelSelector
-            _model={_checkerConfig.model}
-            _setModel={(model) => handleConfigChange({ model: model as ModelOptions })}
+            _model={localCheckerConfig.model}
+            _setModel={(model) => setLocalCheckerConfig(prev => ({ ...prev, model: model as ModelOptions }))}
             _label={t('autoCheck.checkerModel', { ns: 'model', defaultValue: 'Checker Model' })}
           />
           <MaxTokenSlider
-            _maxToken={_checkerConfig.max_tokens}
-            _setMaxToken={(max_tokens) => handleConfigChange({ max_tokens })}
-            _model={_checkerConfig.model}
+            _maxToken={localCheckerConfig.max_tokens}
+            _setMaxToken={(max_tokens) => setLocalCheckerConfig(prev => ({ ...prev, max_tokens: Number(max_tokens) }))}
+            _model={localCheckerConfig.model}
           />
           <TemperatureSlider
-            _temperature={_checkerConfig.temperature}
-            _setTemperature={(temperature) => handleConfigChange({ temperature })}
+            _temperature={localCheckerConfig.temperature}
+            _setTemperature={(temperature) => setLocalCheckerConfig(prev => ({ ...prev, temperature: Number(temperature) }))}
           />
           <TopPSlider
-            _topP={_checkerConfig.top_p}
-            _setTopP={(top_p) => handleConfigChange({ top_p })}
+            _topP={localCheckerConfig.top_p}
+            _setTopP={(top_p) => setLocalCheckerConfig(prev => ({ ...prev, top_p: Number(top_p) }))}
           />
           <PresencePenaltySlider
-            _presencePenalty={_checkerConfig.presence_penalty}
-            _setPresencePenalty={(presence_penalty) => handleConfigChange({ presence_penalty })}
+            _presencePenalty={localCheckerConfig.presence_penalty}
+            _setPresencePenalty={(presence_penalty) => setLocalCheckerConfig(prev => ({ ...prev, presence_penalty: Number(presence_penalty) }))}
           />
           <FrequencyPenaltySlider
-            _frequencyPenalty={_checkerConfig.frequency_penalty}
-            _setFrequencyPenalty={(frequency_penalty) => handleConfigChange({ frequency_penalty })}
+            _frequencyPenalty={localCheckerConfig.frequency_penalty}
+            _setFrequencyPenalty={(frequency_penalty) => setLocalCheckerConfig(prev => ({ ...prev, frequency_penalty: Number(frequency_penalty) }))}
           />
           <button onClick={handleReset} className='btn btn-neutral self-start mt-2'>
             {t('resetToDefault', { ns: 'model' })}
@@ -112,5 +127,4 @@ const AutoCheckConfig = () => {
     </div>
   );
 };
-
 export default AutoCheckConfig;
