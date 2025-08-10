@@ -1,238 +1,236 @@
 import React, {
-     DetailedHTMLProps,
-     HTMLAttributes,
-     memo,
-     useState,
-   } from 'react';
+  DetailedHTMLProps,
+  HTMLAttributes,
+  memo,
+  useState,
+} from 'react';
 
-   import ReactMarkdown from 'react-markdown';
-   import { CodeProps, ReactMarkdownProps } from 'react-markdown/lib/ast-to-react';
+import ReactMarkdown from 'react-markdown';
+import { CodeProps, ReactMarkdownProps } from 'react-markdown/lib/ast-to-react';
 
-   import rehypeKatex from 'rehype-katex';
-   import rehypeHighlight from 'rehype-highlight';
-   import remarkMath from 'remark-math';
-   import remarkGfm from 'remark-gfm';
-  import useStore from '@store/store';
+import rehypeKatex from 'rehype-katex';
+import rehypeHighlight from 'rehype-highlight';
+import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
+import useStore from '@store/store';
 
-   import TickIcon from '@icon/TickIcon';
-   import CrossIcon from '@icon/CrossIcon';
+import TickIcon from '@icon/TickIcon';
+import CrossIcon from '@icon/CrossIcon';
 
-   import useSubmit from '@hooks/useSubmit';
+import useSubmit from '@hooks/useSubmit';
 
-   import {
-     ChatInterface,
-     ContentInterface,
-     ImageContentInterface,
-     isImageContent,
-     isTextContent,
-   } from '@type/chat';
+import {
+  ChatInterface,
+  ContentInterface,
+  ImageContentInterface,
+  isImageContent,
+  isTextContent,
+} from '@type/chat';
 
-   import { codeLanguageSubset } from '@constants/chat';
+import { codeLanguageSubset } from '@constants/chat';
 
-   import RefreshButton from './Button/RefreshButton';
-   import UpButton from './Button/UpButton';
-   import DownButton from './Button/DownButton';
-   import CopyButton from './Button/CopyButton';
-   import EditButton from './Button/EditButton';
-   import DeleteButton from './Button/DeleteButton';
-   import MarkdownModeButton from './Button/MarkdownModeButton';
+import RefreshButton from './Button/RefreshButton';
+import UpButton from './Button/UpButton';
+import DownButton from './Button/DownButton';
+import CopyButton from './Button/CopyButton';
+import EditButton from './Button/EditButton';
+import DeleteButton from './Button/DeleteButton';
+import MarkdownModeButton from './Button/MarkdownModeButton';
 
-   import CodeBlock from '../CodeBlock';
-   import PopupModal from '@components/PopupModal';
-   import { preprocessLaTeX } from '@utils/chat';
+import CodeBlock from '../CodeBlock';
+import PopupModal from '@components/PopupModal';
+import { preprocessLaTeX } from '@utils/chat';
 
-   const ContentView = memo(
-     ({
-       role,
-       content,
-       setIsEdit,
-       messageIndex,
-     }: {
-       role: string;
-       content: ContentInterface[];
-       setIsEdit: React.Dispatch<React.SetStateAction<boolean>>;
-       messageIndex: number;
-     }) => {
-       const { handleSubmit } = useSubmit();
+const ContentView = memo(
+  ({
+    role,
+    content,
+    setIsEdit,
+    messageIndex,
+  }: {
+    role: string;
+    content: ContentInterface[];
+    setIsEdit: React.Dispatch<React.SetStateAction<boolean>>;
+    messageIndex: number;
+  }) => {
+    const { handleSubmit } = useSubmit();
 
-       const [isDelete, setIsDelete] = useState<boolean>(false);
-       const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+    const [isDelete, setIsDelete] = useState<boolean>(false);
+    const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
-       const currentChatIndex = useStore((state) => state.currentChatIndex);
-       const setChats = useStore((state) => state.setChats);
-       const lastMessageIndex = useStore((state) =>
-         state.chats ? state.chats[state.currentChatIndex].messages.length - 1 : 0
-       );
-       const inlineLatex = useStore((state) => state.inlineLatex);
-       const markdownMode = useStore((state) => state.markdownMode);
-     const generating = useStore((state) => state.generating);
+    const currentChatIndex = useStore((state) => state.currentChatIndex);
+    const setChats = useStore((state) => state.setChats);
+    const lastMessageIndex = useStore((state) =>
+      state.chats ? state.chats[state.currentChatIndex].messages.length - 1 : 0
+    );
+    const inlineLatex = useStore((state) => state.inlineLatex);
+    const markdownMode = useStore((state) => state.markdownMode);
+    const generating = useStore((state) => state.generating);
 
-       const handleDelete = () => {
-         const updatedChats: ChatInterface[] = JSON.parse(
-           JSON.stringify(useStore.getState().chats)
-         );
-         updatedChats[currentChatIndex].messages.splice(messageIndex, 1);
-         setChats(updatedChats);
-       };
+    const handleDelete = () => {
+      const updatedChats: ChatInterface[] = JSON.parse(
+        JSON.stringify(useStore.getState().chats)
+      );
+      updatedChats[currentChatIndex].messages.splice(messageIndex, 1);
+      setChats(updatedChats);
+    };
 
-       const handleMove = (direction: 'up' | 'down') => {
-         const updatedChats: ChatInterface[] = JSON.parse(
-           JSON.stringify(useStore.getState().chats)
-         );
-         const updatedMessages = updatedChats[currentChatIndex].messages;
-         const temp = updatedMessages[messageIndex];
-         if (direction === 'up') {
-           updatedMessages[messageIndex] = updatedMessages[messageIndex - 1];
-           updatedMessages[messageIndex - 1] = temp;
-         } else {
-           updatedMessages[messageIndex] = updatedMessages[messageIndex + 1];
-           updatedMessages[messageIndex + 1] = temp;
-         }
-         setChats(updatedChats);
-       };
+    const handleMove = (direction: 'up' | 'down') => {
+      const updatedChats: ChatInterface[] = JSON.parse(
+        JSON.stringify(useStore.getState().chats)
+      );
+      const updatedMessages = updatedChats[currentChatIndex].messages;
+      const temp = updatedMessages[messageIndex];
+      if (direction === 'up') {
+        updatedMessages[messageIndex] = updatedMessages[messageIndex - 1];
+        updatedMessages[messageIndex - 1] = temp;
+      } else {
+        updatedMessages[messageIndex] = updatedMessages[messageIndex + 1];
+        updatedMessages[messageIndex + 1] = temp;
+      }
+      setChats(updatedChats);
+    };
 
-       const handleMoveUp = () => {
-         handleMove('up');
-       };
+    const handleMoveUp = () => {
+      handleMove('up');
+    };
 
-       const handleMoveDown = () => {
-         handleMove('down');
-       };
+    const handleMoveDown = () => {
+      handleMove('down');
+    };
 
-       const handleRefresh = () => {
-         const updatedChats: ChatInterface[] = JSON.parse(
-           JSON.stringify(useStore.getState().chats)
-         );
-         const updatedMessages = updatedChats[currentChatIndex].messages;
-         updatedMessages.splice(updatedMessages.length - 1, 1);
-         setChats(updatedChats);
-         handleSubmit();
-       };
-       const currentTextContent = isTextContent(content[0]) ? content[0].text : '';
-       const handleCopy = () => {
-         navigator.clipboard.writeText(currentTextContent);
-       };
+    const handleRefresh = () => {
+      const updatedChats: ChatInterface[] = JSON.parse(
+        JSON.stringify(useStore.getState().chats)
+      );
+      const updatedMessages = updatedChats[currentChatIndex].messages;
+      updatedMessages.splice(updatedMessages.length - 1, 1);
+      setChats(updatedChats);
+      handleSubmit();
+    };
+    const currentTextContent = isTextContent(content[0]) ? content[0].text : '';
+    const handleCopy = () => {
+      navigator.clipboard.writeText(currentTextContent);
+    };
 
-       const handleImageClick = (imageUrl: string) => {
-         setZoomedImage(imageUrl);
-       };
+    const handleImageClick = (imageUrl: string) => {
+      setZoomedImage(imageUrl);
+    };
 
-       const handleCloseZoom = () => {
-         setZoomedImage(null);
-       };
-       const validImageContents = Array.isArray(content)
-       ? (content.slice(1).filter(isImageContent) as ImageContentInterface[])
-       : [];
-       return (
-         <>
-           <div className='markdown prose w-full md:max-w-full break-words dark:prose-invert dark share-gpt-message'>
-            {role === 'assistant' && isTextContent(content[0]) && content[0].text === '' && generating ? (
-              <div className='text-gray-500 italic animate-pulse'>Generating...</div>
-            ) : (
-               {markdownMode ? (
-                 <ReactMarkdown
-                   remarkPlugins={[
-                     remarkGfm,
-                     [remarkMath, { singleDollarTextMath: inlineLatex }],
-                   ]}
-                   rehypePlugins={[
-                     rehypeKatex,
-                     [
-                       rehypeHighlight,
-                       {
-                         detect: true,
-                         ignoreMissing: true,
-                         subset: codeLanguageSubset,
-                       },
-                     ],
-                   ]}
-                   linkTarget='_new'
-                   components={{
-                     code,
-                     p,
-                   }}
-                 >
-                   {inlineLatex
-                     ? preprocessLaTeX(currentTextContent)
-                     : currentTextContent}
-                 </ReactMarkdown>
-               ) : (
-                 <span className='whitespace-pre-wrap'>{currentTextContent}</span>
-               )}
-            )}
-           </div>
-           {validImageContents.length > 0 && (
-             <div className='flex gap-4'>
-               {validImageContents.map((image, index) => (
-                 <div key={index} className='image-container'>
-                   <img
-                     src={image.image_url.url}
-                     alt={`uploaded-${index}`}
-                     className='h-20 cursor-pointer'
-                     onClick={() => handleImageClick(image.image_url.url)}
-                   />
-                 </div>
-               ))}
-             </div>
-           )}
-           {zoomedImage && (
-             <PopupModal
-               title=''
-               setIsModalOpen={handleCloseZoom}
-               handleConfirm={handleCloseZoom}
-               cancelButton={false}
-             >
-               <div className='flex justify-center'>
-                 <img
-                   src={zoomedImage}
-                   alt='Zoomed'
-                   className='max-w-full max-h-full'
-                 />
-               </div>
-             </PopupModal>
-           )}
-           <div className='flex justify-end gap-2 w-full mt-2'>
-             {isDelete || (
-               <>
-                 {!useStore.getState().generating &&
-                   role === 'assistant' &&
-                   messageIndex === lastMessageIndex && (
-                     <RefreshButton onClick={handleRefresh} />
-                   )}
-                 {messageIndex !== 0 && <UpButton onClick={handleMoveUp} />}
-                 {messageIndex !== lastMessageIndex && (
-                   <DownButton onClick={handleMoveDown} />
-                 )}
+    const handleCloseZoom = () => {
+      setZoomedImage(null);
+    };
+    const validImageContents = Array.isArray(content)
+    ? (content.slice(1).filter(isImageContent) as ImageContentInterface[])
+    : [];
+    return (
+      <>
+        <div className='markdown prose w-full md:max-w-full break-words dark:prose-invert dark share-gpt-message'>
+          {role === 'assistant' && isTextContent(content[0]) && content[0].text === '' && generating ? (
+            <div className='text-gray-500 italic animate-pulse'>Generating...</div>
+          ) : markdownMode ? (
+            <ReactMarkdown
+              remarkPlugins={[
+                remarkGfm,
+                [remarkMath, { singleDollarTextMath: inlineLatex }],
+              ]}
+              rehypePlugins={[
+                rehypeKatex,
+                [
+                  rehypeHighlight,
+                  {
+                    detect: true,
+                    ignoreMissing: true,
+                    subset: codeLanguageSubset,
+                  },
+                ],
+              ]}
+              linkTarget='_new'
+              components={{
+                code,
+                p,
+              }}
+            >
+              {inlineLatex
+                ? preprocessLaTeX(currentTextContent)
+                : currentTextContent}
+            </ReactMarkdown>
+          ) : (
+            <span className='whitespace-pre-wrap'>{currentTextContent}</span>
+          )}
+        </div>
+        {validImageContents.length > 0 && (
+          <div className='flex gap-4'>
+            {validImageContents.map((image, index) => (
+              <div key={index} className='image-container'>
+                <img
+                  src={image.image_url.url}
+                  alt={`uploaded-${index}`}
+                  className='h-20 cursor-pointer'
+                  onClick={() => handleImageClick(image.image_url.url)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+        {zoomedImage && (
+          <PopupModal
+            title=''
+            setIsModalOpen={handleCloseZoom}
+            handleConfirm={handleCloseZoom}
+            cancelButton={false}
+          >
+            <div className='flex justify-center'>
+              <img
+                src={zoomedImage}
+                alt='Zoomed'
+                className='max-w-full max-h-full'
+              />
+            </div>
+          </PopupModal>
+        )}
+        <div className='flex justify-end gap-2 w-full mt-2'>
+          {isDelete || (
+            <>
+              {!useStore.getState().generating &&
+                role === 'assistant' &&
+                messageIndex === lastMessageIndex && (
+                  <RefreshButton onClick={handleRefresh} />
+                )}
+              {messageIndex !== 0 && <UpButton onClick={handleMoveUp} />}
+              {messageIndex !== lastMessageIndex && (
+                <DownButton onClick={handleMoveDown} />
+              )}
 
-                 <MarkdownModeButton />
-                 <CopyButton onClick={handleCopy} />
-                 <EditButton setIsEdit={setIsEdit} />
-                 <DeleteButton setIsDelete={setIsDelete} />
-               </>
-             )}
-             {isDelete && (
-               <>
-                 <button
-                   className='p-1 hover:text-white'
-                   aria-label='cancel'
-                   onClick={() => setIsDelete(false)}
-                 >
-                   <CrossIcon />
-                 </button>
-                 <button
-                   className='p-1 hover:text-white'
-                   aria-label='confirm'
-                   onClick={handleDelete}
-                 >
-                   <TickIcon />
-                 </button>
-               </>
-             )}
-           </div>
-         </>
-       );
-     }
-   );
+              <MarkdownModeButton />
+              <CopyButton onClick={handleCopy} />
+              <EditButton setIsEdit={setIsEdit} />
+              <DeleteButton setIsDelete={setIsDelete} />
+            </>
+          )}
+          {isDelete && (
+            <>
+              <button
+                className='p-1 hover:text-white'
+                aria-label='cancel'
+                onClick={() => setIsDelete(false)}
+              >
+                <CrossIcon />
+              </button>
+              <button
+                className='p-1 hover:text-white'
+                aria-label='confirm'
+                onClick={handleDelete}
+              >
+                <TickIcon />
+              </button>
+            </>
+          )}
+        </div>
+      </>
+    );
+  }
+);
 
 const code = memo((props: CodeProps) => {
   const { inline, className, children } = props;
