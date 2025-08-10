@@ -5,6 +5,7 @@ import {
 } from '@type/chat';
 import { isAzureEndpoint } from '@utils/api';
 import { ModelOptions } from '@utils/modelReader';
+import useStore from '@store/store';
 
 /**
  * Normalize messages for providers that expect `content` to be a plain string.
@@ -27,6 +28,18 @@ const normalizeMessagesForProvider = (messages: MessageInterface[]) => {
     // leave as-is (for multimodal or already string)
     return m as any;
   });
+};
+
+const getCustomBody = () => {
+  const customBodyString = useStore.getState().apiRequestBody;
+  if (!customBodyString) return {};
+  try {
+    return JSON.parse(customBodyString);
+  } catch (e) {
+    console.error('Invalid JSON in custom request body, ignoring. Error:', e);
+    // В будущем можно добавить уведомление для пользователя
+    return {};
+  }
 };
 
 export const getChatCompletion = async (
@@ -73,6 +86,7 @@ export const getChatCompletion = async (
   }
   endpoint = endpoint.trim();
 
+  const customBody = getCustomBody(); // <-- ПОЛУЧАЕМ КАСТОМНЫЕ ПОЛЯ
   const payloadMessages = normalizeMessagesForProvider(messages);
 
   const response = await fetch(endpoint, {
@@ -82,6 +96,7 @@ export const getChatCompletion = async (
     body: JSON.stringify({
       messages: payloadMessages,
       ...config,
+      ...customBody, // <-- "ПОДМЕШИВАЕМ" КАСТОМНЫЕ ПОЛЯ В ЗАПРОС
       max_tokens: undefined,
     }),
   });
@@ -132,6 +147,7 @@ export const getChatCompletionStream = async (
   }
   endpoint = endpoint.trim();
 
+  const customBody = getCustomBody(); // <-- ПОЛУЧАЕМ КАСТОМНЫЕ ПОЛЯ
   const payloadMessages = normalizeMessagesForProvider(messages);
 
   const response = await fetch(endpoint, {
@@ -141,6 +157,7 @@ export const getChatCompletionStream = async (
     body: JSON.stringify({
       messages: payloadMessages,
       ...config,
+      ...customBody, // <-- "ПОДМЕШИВАЕМ" КАСТОМНЫЕ ПОЛЯ В ЗАПРОС
       max_tokens: undefined,
       stream: true,
     }),
