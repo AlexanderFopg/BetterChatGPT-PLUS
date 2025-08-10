@@ -40,6 +40,7 @@ import MarkdownModeButton from './Button/MarkdownModeButton';
 import CodeBlock from '../CodeBlock';
 import PopupModal from '@components/PopupModal';
 import { preprocessLaTeX } from '@utils/chat';
+import { useTranslation } from 'react-i18next';
 
 const ContentView = memo(
   ({
