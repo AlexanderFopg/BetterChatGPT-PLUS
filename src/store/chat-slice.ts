@@ -9,6 +9,11 @@ export interface ChatSlice {
   generating: boolean;
   error: string;
   folders: FolderCollection;
+  // Abort management for in-flight requests
+  abortController?: AbortController;
+  setAbortController: (controller?: AbortController) => void;
+  cancelGeneration: () => void;
+
   setMessages: (messages: MessageInterface[]) => void;
   setChats: (chats: ChatInterface[]) => void;
   setCurrentChatIndex: (currentChatIndex: number) => void;
@@ -24,6 +29,26 @@ export const createChatSlice: StoreSlice<ChatSlice> = (set, get) => {
     generating: false,
     error: '',
     folders: {},
+
+    abortController: undefined,
+    setAbortController: (controller?: AbortController) => {
+      set((prev: ChatSlice) => ({
+        ...prev,
+        abortController: controller,
+      }));
+    },
+    cancelGeneration: () => {
+      const ac = get().abortController;
+      try {
+        if (ac && !ac.signal.aborted) ac.abort();
+      } catch {}
+      set((prev: ChatSlice) => ({
+        ...prev,
+        generating: false,
+        abortController: undefined,
+      }));
+    },
+
     setMessages: (messages: MessageInterface[]) => {
       set((prev: ChatSlice) => ({
         ...prev,
@@ -49,6 +74,18 @@ export const createChatSlice: StoreSlice<ChatSlice> = (set, get) => {
       }));
     },
     setGenerating: (generating: boolean) => {
+      // When turning off generating, also abort the in-flight request
+      if (!generating) {
+        const ac = get().abortController;
+        try {
+          if (ac && !ac.signal.aborted) ac.abort();
+        } catch {}
+        set((prev: ChatSlice) => ({
+          ...prev,
+          abortController: undefined,
+        }));
+      }
+
       set((prev: ChatSlice) => ({
         ...prev,
         generating: generating,
