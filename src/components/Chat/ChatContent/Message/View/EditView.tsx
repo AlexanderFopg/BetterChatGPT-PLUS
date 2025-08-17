@@ -232,10 +232,15 @@ const EditView = ({
 
   const { handleSubmit } = useSubmit();
   const handleGenerate = () => {
-    const hasTextContent = (_content[0] as TextContentInterface).text !== '';
-    const hasImageContent = Array.isArray(_content) && _content.some(
-      (content) => content.type === 'image_url'
-    );
+    const text = textareaRef.current?.value ?? '';
+    const updatedContent: ContentInterface[] = [
+      { type: 'text', text: text },
+      ..._content.slice(1),
+    ];
+    const hasTextContent = text !== '';
+    const hasImageContent =
+      Array.isArray(updatedContent) &&
+      updatedContent.some((content) => content.type === 'image_url');
 
     if (useStore.getState().generating) {
       return;
@@ -251,7 +256,7 @@ const EditView = ({
 
     if (sticky) {
       if (hasTextContent || hasImageContent) {
-        updatedMessages.push({ role: inputRole, content: _content });
+        updatedMessages.push({ role: inputRole, content: updatedContent });
       }
       _setContent([
         {
@@ -259,9 +264,10 @@ const EditView = ({
           text: '',
         } as TextContentInterface,
       ]);
+      if (textareaRef.current) textareaRef.current.value = '';
       resetTextAreaHeight();
     } else {
-      updatedMessages[messageIndex].content = _content;
+      updatedMessages[messageIndex].content = updatedContent;
       updatedChats[currentChatIndex].messages = updatedMessages.slice(
         0,
         messageIndex + 1
@@ -280,7 +286,7 @@ const EditView = ({
           { autoClose: 15000 }
         );
         // try to save text only
-        const textOnlyContent = _content.filter(isTextContent);
+        const textOnlyContent = updatedContent.filter(isTextContent);
         if (textOnlyContent.length > 0) {
           updatedMessages[messageIndex].content = textOnlyContent;
           try {
@@ -338,13 +344,6 @@ const EditView = ({
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
-  }, [(_content[0] as TextContentInterface).text]);
-
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
   }, []);
 
   const fileInputRef = useRef(null);
@@ -381,13 +380,13 @@ const EditView = ({
             className={`m-0 resize-none rounded-lg bg-transparent overflow-y-hidden focus:ring-0 focus-visible:ring-0 leading-7 w-full placeholder:text-gray-500/40 pr-10 ${
               modelTypes[model] == 'image' ? 'pl-7' : ''
             }`} // Adjust padding-right to make space for the icon
-            onChange={(e) => {
-              _setContent((prev) => [
-                { type: 'text', text: e.target.value },
-                ...prev.slice(1),
-              ]);
+            defaultValue={(_content[0] as TextContentInterface).text}
+            onInput={() => {
+              if (textareaRef.current) {
+                textareaRef.current.style.height = 'auto';
+                textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+              }
             }}
-            value={(_content[0] as TextContentInterface).text}
             placeholder={t('submitPlaceholder') as string}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
