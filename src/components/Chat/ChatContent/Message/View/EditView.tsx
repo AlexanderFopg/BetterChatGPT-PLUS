@@ -159,10 +159,15 @@ const EditView = ({
     _setContent(updatedImages);
   };
   const handleSave = () => {
-    const hasTextContent = (_content[0] as TextContentInterface).text !== '';
-    const hasImageContent = Array.isArray(_content) && _content.some(
-      (content) => content.type === 'image_url'
-    );
+    const text = textareaRef.current?.value ?? '';
+    const updatedContent: ContentInterface[] = [
+      { type: 'text', text: text },
+      ..._content.slice(1),
+    ];
+    const hasTextContent = text !== '';
+    const hasImageContent =
+      Array.isArray(updatedContent) &&
+      updatedContent.some((content) => content.type === 'image_url');
 
     if (
       sticky &&
@@ -179,16 +184,17 @@ const EditView = ({
     const updatedMessages = updatedChats[currentChatIndex].messages;
 
     if (sticky) {
-      updatedMessages.push({ role: inputRole, content: _content });
+      updatedMessages.push({ role: inputRole, content: updatedContent });
       _setContent([
         {
           type: 'text',
           text: '',
         } as TextContentInterface,
       ]);
+      if (textareaRef.current) textareaRef.current.value = '';
       resetTextAreaHeight();
     } else {
-      updatedMessages[messageIndex].content = _content;
+      updatedMessages[messageIndex].content = updatedContent;
       setIsEdit(false);
     }
     try {
@@ -203,7 +209,7 @@ const EditView = ({
           { autoClose: 15000 }
         );
         // try to save text only
-        const textOnlyContent = _content.filter(isTextContent);
+        const textOnlyContent = updatedContent.filter(isTextContent);
         if (textOnlyContent.length > 0) {
           updatedMessages[messageIndex].content = textOnlyContent;
           try {
