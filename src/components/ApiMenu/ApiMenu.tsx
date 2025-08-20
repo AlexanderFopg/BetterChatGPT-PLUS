@@ -184,6 +184,23 @@ const ApiMenu = ({
           )}
         </div>
 
+        {/* Новая секция для исключаемых полей */}
+        <div className='p-6 border-b border-gray-200 dark:border-gray-600'>
+          <h3 className='text-lg font-semibold mb-2 text-gray-900 dark:text-white'>
+            {t('apiKey.excludedFieldsTitle', { ns: 'api', defaultValue: 'Excluded Fields' })}
+          </h3>
+          <p className='text-sm text-gray-500 dark:text-gray-400 mb-3'>
+            {t('apiKey.excludedFieldsDescription', { ns: 'api', defaultValue: 'Enter a comma-separated list of fields to exclude from the API request body (e.g., max_tokens, temperature).' })}
+          </p>
+          <input
+            type='text'
+            className='text-gray-800 dark:text-white p-3 text-sm border-none bg-gray-200 dark:bg-gray-600 rounded-md m-0 w-full mr-0 h-8 focus:outline-none'
+            value={_excludedFields}
+            onChange={(e) => _setExcludedFields(e.target.value)}
+            placeholder='max_tokens, temperature'
+          />
+        </div>
+
         {/* Секция с API Version и информационными сообщениями */}
         <div className='p-6'>
           <div className='flex flex-col sm:flex-row sm:items-center gap-2'>
