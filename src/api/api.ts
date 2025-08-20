@@ -95,7 +95,7 @@ export const getChatCompletion = async (
     signal: abortSignal,
     body: JSON.stringify({
       messages: payloadMessages,
-      ...config,
+      ...Object.fromEntries(Object.entries(config).filter(([key]) => !(config.excludedFields || []).includes(key))),
       ...customBody, // <-- "ПОДМЕШИВАЕМ" КАСТОМНЫЕ ПОЛЯ В ЗАПРОС
       max_tokens: undefined,
     }),
