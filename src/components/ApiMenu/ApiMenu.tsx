@@ -61,6 +61,7 @@ const ApiMenu = ({
     setApiEndpoint(_apiEndpoint);
     setApiVersion(_apiVersion);
     setApiRequestBody(_apiRequestBody); // <-- сохраняем тело запроса
+    setExcludedFields(_excludedFields.split(',').map(s => s.trim()).filter(Boolean)); // <-- сохраняем исключаемые поля
     setIsModalOpen(false);
   };
 
