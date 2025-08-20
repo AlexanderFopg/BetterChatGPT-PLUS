@@ -96,6 +96,7 @@ export const createConfigSlice: StoreSlice<ConfigSlice> = (set, get) => ({
   streamFirstLLM: false,
   checkerConfig: _defaultCheckerConfig,
   checkerSystemMessage: _defaultCheckerSystemMessage,
+  excludedFields: [],
   // ===========================================================================
   apiRequestBody: '',
   setOpenConfig: (openConfig: boolean) => {
