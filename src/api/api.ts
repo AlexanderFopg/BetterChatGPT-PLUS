@@ -88,6 +88,7 @@ export const getChatCompletion = async (
 
   const customBody = getCustomBody(); // <-- ПОЛУЧАЕМ КАСТОМНЫЕ ПОЛЯ
   const payloadMessages = normalizeMessagesForProvider(messages);
+  const excludedFields = useStore.getState().excludedFields || [];
 
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -95,7 +96,9 @@ export const getChatCompletion = async (
     signal: abortSignal,
     body: JSON.stringify({
       messages: payloadMessages,
-      ...Object.fromEntries(Object.entries(config).filter(([key]) => !(config.excludedFields || []).includes(key))),
+      ...Object.fromEntries(
+      Object.entries(config).filter(([key]) => !excludedFields.includes(key))
+    ),
       ...customBody, // <-- "ПОДМЕШИВАЕМ" КАСТОМНЫЕ ПОЛЯ В ЗАПРОС
       max_tokens: undefined,
     }),
@@ -149,6 +152,7 @@ export const getChatCompletionStream = async (
 
   const customBody = getCustomBody(); // <-- ПОЛУЧАЕМ КАСТОМНЫЕ ПОЛЯ
   const payloadMessages = normalizeMessagesForProvider(messages);
+  const excludedFields = useStore.getState().excludedFields || [];
 
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -156,7 +160,9 @@ export const getChatCompletionStream = async (
     signal: abortSignal,
     body: JSON.stringify({
       messages: payloadMessages,
-      ...config,
+      ...Object.fromEntries(
+      Object.entries(config).filter(([key]) => !excludedFields.includes(key))
+    ),
       ...customBody, // <-- "ПОДМЕШИВАЕМ" КАСТОМНЫЕ ПОЛЯ В ЗАПРОС
       max_tokens: undefined,
       stream: true,
