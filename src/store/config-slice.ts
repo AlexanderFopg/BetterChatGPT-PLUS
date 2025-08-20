@@ -65,6 +65,7 @@ export interface ConfigSlice {
   setStreamFirstLLM: (streamFirstLLM: boolean) => void;
   setCheckerConfig: (checkerConfig: ConfigInterface) => void;
   setCheckerSystemMessage: (checkerSystemMessage: string) => void;
+  setExcludedFields: (excludedFields: string[]) => void;
   // ===========================================================================
   setApiRequestBody: (body: string) => void;
 }
@@ -219,6 +220,9 @@ export const createConfigSlice: StoreSlice<ConfigSlice> = (set, get) => ({
   },
   setCheckerSystemMessage: (checkerSystemMessage: string) => {
     set((prev: ConfigSlice) => ({ ...prev, checkerSystemMessage }));
+  },
+  setExcludedFields: (excludedFields: string[]) => {
+    set((prev: ConfigSlice) => ({ ...prev, excludedFields }));
   },
   setApiRequestBody: (body: string) => { // <-- И СЮДА
     set((prev: ConfigSlice) => ({
