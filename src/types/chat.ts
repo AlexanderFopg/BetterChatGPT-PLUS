@@ -65,6 +65,7 @@ export interface ConfigInterface {
   presence_penalty: number;
   top_p: number;
   frequency_penalty: number;
+  excludedFields?: string[];
 }
 
 export interface ChatHistoryInterface {
