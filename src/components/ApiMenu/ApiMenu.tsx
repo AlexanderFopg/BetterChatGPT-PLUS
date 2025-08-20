@@ -21,13 +21,14 @@ const ApiMenu = ({
 
   // Получаем новые состояния и методы
   const {
-    apiKeys, activeApiKeyIndex, apiEndpoint, apiVersion, apiRequestBody, // <-- получаем apiRequestBody
-    addApiKey, removeApiKey, setActiveApiKeyIndex, setApiEndpoint, setApiVersion, setApiRequestBody, // <-- получаем setApiRequestBody
+    apiKeys, activeApiKeyIndex, apiEndpoint, apiVersion, apiRequestBody, excludedFields, // <-- получаем apiRequestBody и excludedFields
+    addApiKey, removeApiKey, setActiveApiKeyIndex, setApiEndpoint, setApiVersion, setApiRequestBody, setExcludedFields, // <-- получаем setApiRequestBody и setExcludedFields
   } = useStore();
 
   const [_apiEndpoint, _setApiEndpoint] = useState<string>(apiEndpoint);
   const [_apiVersion, _setApiVersion] = useState<string>(apiVersion || '');
   const [_apiRequestBody, _setApiRequestBody] = useState<string>(apiRequestBody || ''); // <-- локальное состояние
+  const [_excludedFields, _setExcludedFields] = useState<string>(excludedFields?.join(', ') || ''); // <-- локальное состояние для исключаемых полей
   const [_customEndpoint, _setCustomEndpoint] = useState<boolean>(!availableEndpoints.includes(apiEndpoint));
   const [newApiKey, setNewApiKey] = useState('');
   const [isJsonValid, setIsJsonValid] = useState(true); // <-- состояние для валидации JSON
@@ -61,7 +62,7 @@ const ApiMenu = ({
     setApiEndpoint(_apiEndpoint);
     setApiVersion(_apiVersion);
     setApiRequestBody(_apiRequestBody); // <-- сохраняем тело запроса
-    setExcludedFields(_excludedFields.split(',').map(s => s.trim()).filter(Boolean)); // <-- сохраняем исключаемые поля
+    setExcludedFields(_excludedFields.split(',').map((s: string) => s.trim()).filter(Boolean)); // <-- сохраняем исключаемые поля
     setIsModalOpen(false);
   };
 
