@@ -39,6 +39,7 @@ export interface ConfigSlice {
   streamFirstLLM: boolean;
   checkerConfig: ConfigInterface;
   checkerSystemMessage: string;
+  excludedFields: string[];
   // ===========================================================================
   setOpenConfig: (openConfig: boolean) => void;
   setTheme: (theme: Theme) => void;
