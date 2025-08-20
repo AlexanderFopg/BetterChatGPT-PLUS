@@ -84,6 +84,7 @@ export const createPartializedState = (state: StoreState) => ({
   checkerSystemMessage: state.checkerSystemMessage,
   // ===========================================================================
   apiRequestBody: state.apiRequestBody,
+  excludedFields: state.excludedFields,
 });
 
 const useStore = create<StoreState>()(
